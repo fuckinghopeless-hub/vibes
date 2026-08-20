@@ -15,7 +15,20 @@ if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
 }
 
 # Запрос версии
-$ver = Read-Host "Введите номер версии (например 0.1v2 или Enter для пропуска)"
+$ver = Read-Host "Введите номер версии (например 0.1v3 или Enter для пропуска)"
+
+# Если версия введена — автоматически обновляем src/version.ts
+if (-not [string]::IsNullOrWhiteSpace($ver)) {
+    $versionContent = @"
+/**
+ * VIBES Platform Version
+ * Automatically synchronized with Git releases and Settings tab
+ */
+export const APP_VERSION = '$ver';
+"@
+    Set-Content -Path "src\version.ts" -Value $versionContent -Encoding UTF8
+    Write-Host "  [*] Версия в проекте обновлена на: $ver" -ForegroundColor Green
+}
 
 # Запрос описания коммита
 $msg = Read-Host "Введите описание коммита (или Enter для авто-сообщения)"

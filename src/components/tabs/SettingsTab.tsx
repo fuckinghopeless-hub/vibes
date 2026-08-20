@@ -2,6 +2,7 @@ import React from 'react';
 import { Trash2, Info, CheckCircle2, Palette, Sliders, Check } from 'lucide-react';
 import { useVibeStore } from '../../store/useVibeStore';
 import { AccentColor } from '../../types';
+import { APP_VERSION } from '../../version';
 import { M3Card } from '../ui/M3Card';
 import { M3Button } from '../ui/M3Button';
 
@@ -175,7 +176,7 @@ export const SettingsTab: React.FC = () => {
 
           <div className="flex items-center gap-2">
             <span className="text-xs font-mono font-bold px-3 py-1.5 rounded-xl bg-black dark:bg-white text-white dark:text-black shadow-sm">
-              0.1v1
+              {APP_VERSION}
             </span>
           </div>
         </div>

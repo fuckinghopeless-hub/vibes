@@ -22,7 +22,17 @@ if errorlevel 1 (
 
 REM Zapros Versii
 set VER=
-set /p "VER=Vvedite nomer versii (naprimer 0.1v2 ili Enter dlya propuska): "
+set /p "VER=Vvedite nomer versii (naprimer 0.1v3 ili Enter dlya propuska): "
+
+REM Esli versiya vvedena - obnovlyaem src/version.ts
+if not "%VER%"=="" (
+    echo /** > src\version.ts
+    echo  * VIBES Platform Version >> src\version.ts
+    echo  * Automatically synchronized with Git releases and Settings tab >> src\version.ts
+    echo  */ >> src\version.ts
+    echo export const APP_VERSION = '%VER%'; >> src\version.ts
+    echo   [*] Obnovlena versiya v proekte na: %VER%
+)
 
 REM Zapros Opisaniya
 set MSG=
