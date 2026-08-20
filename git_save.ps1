@@ -1,46 +1,56 @@
-# VIBES Git Auto-Save & Push Script
+# VIBES Git Auto-Save with Versions
 Write-Host ""
 Write-Host " ===================================================================" -ForegroundColor Cyan
-Write-Host "   VIBES - Автоматическое Сохранение в GitHub" -ForegroundColor White
+Write-Host "   VIBES - Автоматическое Сохранение Версий в GitHub" -ForegroundColor White
 Write-Host " ===================================================================" -ForegroundColor Cyan
 Write-Host ""
 
 # Проверка наличия Git
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-    Write-Host "  [!] Git не установлен в системе!" -ForegroundColor Red
+    Write-Host "  [!] Git не найден в системе!" -ForegroundColor Red
     Write-Host "  Скачайте и установите Git: https://git-scm.com/download/win" -ForegroundColor Yellow
     Write-Host ""
     Read-Host "Нажмите Enter для выхода..."
     exit 1
 }
 
-# Инициализация если нужно
-if (-not (Test-Path ".git")) {
-    Write-Host "  [*] Инициализация Git-репозитория..." -ForegroundColor Gray
-    git init
-    git branch -M main
-}
+# Запрос версии
+$ver = Read-Host "Введите номер версии (например 0.1v2 или Enter для пропуска)"
 
 # Запрос описания коммита
-$msg = Read-Host "Введите описание изменений (или Enter для авто-сохранения)"
+$msg = Read-Host "Введите описание коммита (или Enter для авто-сообщения)"
+
 if ([string]::IsNullOrWhiteSpace($msg)) {
-    $msg = "chore: update vibes platform version"
+    if ([string]::IsNullOrWhiteSpace($ver)) {
+        $msg = "chore: update vibes platform"
+    } else {
+        $msg = "feat($ver): release $ver updates"
+    }
+} else {
+    if (-not [string]::IsNullOrWhiteSpace($ver)) {
+        $msg = "feat($ver): $msg"
+    }
 }
 
 Write-Host ""
 Write-Host "  [*] Добавление файлов (git add .)..." -ForegroundColor Gray
 git add .
 
-Write-Host "  [*] Создание коммита..." -ForegroundColor Gray
+Write-Host "  [*] Создание коммита: '$msg'..." -ForegroundColor Gray
 git commit -m $msg
 
+if (-not [string]::IsNullOrWhiteSpace($ver)) {
+    Write-Host "  [*] Создание тега версии: '$ver'..." -ForegroundColor Gray
+    git tag -a $ver -m "Release $ver" 2>$null
+}
+
 Write-Host ""
-Write-Host "  [*] Отправка в GitHub (git push origin main)..." -ForegroundColor Gray
-git push origin main
+Write-Host "  [*] Отправка в GitHub со всеми тегами (git push origin main --tags)..." -ForegroundColor Gray
+git push origin main --tags
 
 Write-Host ""
 Write-Host " ===================================================================" -ForegroundColor Green
-Write-Host "   [✓] Готово! Все изменения сохранены." -ForegroundColor Green
+Write-Host "   [✓] Готово! Версия и файлы успешно отправлены в GitHub." -ForegroundColor Green
 Write-Host " ===================================================================" -ForegroundColor Green
 Write-Host ""
 Read-Host "Нажмите Enter для завершения..."
