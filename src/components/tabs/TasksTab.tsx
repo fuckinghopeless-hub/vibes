@@ -1,385 +1,326 @@
-import React, { useState } from 'react';
-import { Plus, Check, Trash2, Timer, Calendar, Tag } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { 
+  Plus, 
+  Search, 
+  Clock, 
+  CheckCircle2, 
+  Repeat, 
+  Sparkles,
+  Tag as TagIcon
+} from 'lucide-react';
 import { useVibeStore } from '../../store/useVibeStore';
-import { TaskPriority, TaskType } from '../../types';
+import { TaskItem } from '../../types';
 import { M3Button } from '../ui/M3Button';
 import { M3Card } from '../ui/M3Card';
-import { M3Input } from '../ui/M3Input';
+import { TaskEditorModal } from './tasks/TaskEditorModal';
+import { TaskCard } from './tasks/TaskCard';
 
 export const TasksTab: React.FC = () => {
-  const { tasks, addTask, toggleTask, deleteTask } = useVibeStore();
-  const [isAdding, setIsAdding] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all');
+  const { tasks, getPopularTags } = useVibeStore();
+  const popularTags = getPopularTags();
 
-  // Flexible task form state
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [priority, setPriority] = useState<TaskPriority>('medium');
-  const [type, setType] = useState<TaskType>('one_off');
-  const [estimatedPomodoros, setEstimatedPomodoros] = useState(1);
-  const [tag, setTag] = useState('');
-  const [dueDate, setDueDate] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<TaskItem | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim()) return;
+  const [filter, setFilter] = useState<'all' | 'active' | 'completed' | 'routine' | 'milestone'>('all');
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
-    addTask({
-      title,
-      description,
-      priority,
-      type,
-      estimatedPomodoros,
-      tag: tag || undefined,
-      dueDate: dueDate || undefined,
-    });
+  // Calculate day summary time stats
+  const totalPlannedMinutes = useMemo(() => {
+    return tasks
+      .filter((t) => t.hasTimeEstimate && t.estimatedMinutes && t.estimatedMinutes > 0)
+      .reduce((sum, t) => sum + (t.estimatedMinutes || 0), 0);
+  }, [tasks]);
 
-    // Reset
-    setTitle('');
-    setDescription('');
-    setPriority('medium');
-    setType('one_off');
-    setEstimatedPomodoros(1);
-    setTag('');
-    setDueDate('');
-    setIsAdding(false);
+  const completedMinutes = useMemo(() => {
+    return tasks
+      .reduce((sum, t) => {
+        if (t.isCompleted && t.hasTimeEstimate && t.estimatedMinutes) {
+          return sum + t.estimatedMinutes;
+        }
+        if (t.completedMinutes && t.completedMinutes > 0) {
+          return sum + t.completedMinutes;
+        }
+        return sum;
+      }, 0);
+  }, [tasks]);
+
+  const formatHoursMinutes = (mins: number) => {
+    if (mins === 0) return '0 мин';
+    if (mins < 60) return `${mins} мин`;
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return m > 0 ? `${h} ч ${m} мин` : `${h} ч`;
   };
 
-  const filteredTasks = tasks.filter((t) => {
-    if (filter === 'active') return !t.isCompleted;
-    if (filter === 'completed') return t.isCompleted;
-    return true;
-  });
+  // Filter tasks
+  const filteredTasks = useMemo(() => {
+    return tasks.filter((t) => {
+      // Status filter
+      if (filter === 'active' && t.isCompleted) return false;
+      if (filter === 'completed' && !t.isCompleted) return false;
+      if (filter === 'routine' && t.type !== 'routine') return false;
+      if (filter === 'milestone' && t.type !== 'milestone') return false;
+
+      // Tag filter
+      if (selectedTag) {
+        const taskTags = t.tags || (t.tag ? [t.tag] : []);
+        if (!taskTags.some((tag) => tag.toLowerCase() === selectedTag.toLowerCase())) {
+          return false;
+        }
+      }
+
+      // Search query
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const inTitle = t.title.toLowerCase().includes(q);
+        const inDesc = (t.description || '').toLowerCase().includes(q);
+        const inTags = (t.tags || []).some((tag) => tag.toLowerCase().includes(q));
+        if (!inTitle && !inDesc && !inTags) return false;
+      }
+
+      return true;
+    });
+  }, [tasks, filter, selectedTag, searchQuery]);
 
   const completedCount = tasks.filter((t) => t.isCompleted).length;
+  const routineCount = tasks.filter((t) => t.type === 'routine').length;
 
-  const priorityLabels: Record<TaskPriority, { label: string; bg: string }> = {
-    low: { label: 'Низкий', bg: 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300' },
-    medium: { label: 'Средний', bg: 'bg-zinc-200 dark:bg-zinc-700 text-black dark:text-white' },
-    high: { label: 'Высокий', bg: 'bg-zinc-300 dark:bg-zinc-600 text-black dark:text-white font-bold' },
-    critical: { label: 'Критический', bg: 'bg-black dark:bg-white text-white dark:text-black font-extrabold' },
+  const handleOpenCreateModal = () => {
+    setEditingTask(null);
+    setIsModalOpen(true);
   };
 
-  const typeLabels: Record<TaskType, string> = {
-    one_off: 'Разовая',
-    daily: 'Ежедневная',
-    habit: 'Привычка',
+  const handleOpenEditModal = (task: TaskItem) => {
+    setEditingTask(task);
+    setIsModalOpen(true);
   };
-
-  const quickTags = ['Код', 'Работа', 'Учеба', 'Спорт', 'Личное'];
 
   return (
-    <div className="space-y-6 w-full">
-      {/* Top Controls & Summary */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-semibold text-black dark:text-white tracking-tight">Задачи & Привычки</h2>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-            Гибкая система планирования: приоритеты, дедлайны и тайм-блоки
+    <div className="space-y-6 w-full max-w-5xl mx-auto">
+      {/* Top Header & Day Time Overview */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="text-left">
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-black dark:text-white tracking-tight">
+            Задачи & Рутины
+          </h2>
+          <p className="text-xs sm:text-sm font-medium text-zinc-500 dark:text-zinc-400 mt-1">
+            Конструктор задач, тайм-блоки фокуса, регулярные привычки и чеклисты
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <M3Button
+            variant="primary"
+            size="md"
+            onClick={handleOpenCreateModal}
+            className="px-6 py-3 font-bold text-sm shadow-md"
+            leftIcon={<Plus className="w-5 h-5 stroke-[2.5]" />}
+          >
+            Создать задачу
+          </M3Button>
+        </div>
+      </div>
+
+      {/* Stats & Time Budget Widget */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        <div className="p-5 rounded-3xl bg-white dark:bg-[#18181B] border-2 border-zinc-200 dark:border-zinc-800 shadow-sm flex items-center gap-4 text-left">
+          <div className="w-12 h-12 rounded-2xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-black dark:text-white flex-shrink-0 shadow-inner">
+            <Clock className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
+              Бюджет времени
+            </div>
+            <div className="text-base sm:text-lg font-extrabold font-mono text-black dark:text-white">
+              {formatHoursMinutes(totalPlannedMinutes)}
+            </div>
+          </div>
+        </div>
+
+        <div className="p-5 rounded-3xl bg-white dark:bg-[#18181B] border-2 border-zinc-200 dark:border-zinc-800 shadow-sm flex items-center gap-4 text-left">
+          <div className="w-12 h-12 rounded-2xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-black dark:text-white flex-shrink-0 shadow-inner">
+            <CheckCircle2 className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
+              Выполнено времени
+            </div>
+            <div className="text-base sm:text-lg font-extrabold font-mono text-black dark:text-white">
+              {formatHoursMinutes(completedMinutes)}
+            </div>
+          </div>
+        </div>
+
+        <div className="p-5 rounded-3xl bg-white dark:bg-[#18181B] border-2 border-zinc-200 dark:border-zinc-800 shadow-sm flex items-center gap-4 text-left">
+          <div className="w-12 h-12 rounded-2xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-black dark:text-white flex-shrink-0 shadow-inner">
+            <Repeat className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
+              Постоянные рутины
+            </div>
+            <div className="text-base sm:text-lg font-extrabold font-mono text-black dark:text-white">
+              {routineCount} привычек
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Search & Filter Bar */}
+      <M3Card className="p-5 sm:p-6 space-y-4">
+        {/* Search input and Main Category Filter */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3.5">
+          {/* Search box */}
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 text-zinc-400 absolute left-4 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Поиск по названию, описанию или тегам..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full py-2.5 pl-11 pr-4 text-xs sm:text-sm font-semibold rounded-2xl bg-zinc-50 dark:bg-zinc-900 text-black dark:text-white border-2 border-zinc-200 dark:border-zinc-800 focus:border-black dark:focus:border-white outline-none placeholder:font-normal placeholder:text-zinc-400"
+            />
+          </div>
+
           {/* Filter Pills */}
-          <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl border border-zinc-200 dark:border-zinc-700">
+          <div className="flex flex-wrap bg-zinc-100 dark:bg-zinc-800/80 p-1 rounded-2xl border border-zinc-200 dark:border-zinc-700">
             <button
+              type="button"
               onClick={() => setFilter('all')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+              className={`px-3.5 py-1.5 text-xs sm:text-sm font-bold rounded-xl transition-all btn-spring ${
                 filter === 'all'
                   ? 'bg-white dark:bg-zinc-700 text-black dark:text-white shadow-sm'
-                  : 'text-zinc-500 dark:text-zinc-400 hover:text-black dark:hover:text-white'
+                  : 'text-zinc-500 hover:text-black dark:hover:text-white'
               }`}
             >
               Все ({tasks.length})
             </button>
             <button
+              type="button"
               onClick={() => setFilter('active')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+              className={`px-3.5 py-1.5 text-xs sm:text-sm font-bold rounded-xl transition-all btn-spring ${
                 filter === 'active'
                   ? 'bg-white dark:bg-zinc-700 text-black dark:text-white shadow-sm'
-                  : 'text-zinc-500 dark:text-zinc-400 hover:text-black dark:hover:text-white'
+                  : 'text-zinc-500 hover:text-black dark:hover:text-white'
               }`}
             >
               В работе ({tasks.length - completedCount})
             </button>
             <button
+              type="button"
+              onClick={() => setFilter('routine')}
+              className={`px-3.5 py-1.5 text-xs sm:text-sm font-bold rounded-xl transition-all btn-spring flex items-center gap-1.5 ${
+                filter === 'routine'
+                  ? 'bg-white dark:bg-zinc-700 text-black dark:text-white shadow-sm'
+                  : 'text-zinc-500 hover:text-black dark:hover:text-white'
+              }`}
+            >
+              <Repeat className="w-3.5 h-3.5" />
+              Рутины ({routineCount})
+            </button>
+            <button
+              type="button"
               onClick={() => setFilter('completed')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+              className={`px-3.5 py-1.5 text-xs sm:text-sm font-bold rounded-xl transition-all btn-spring ${
                 filter === 'completed'
                   ? 'bg-white dark:bg-zinc-700 text-black dark:text-white shadow-sm'
-                  : 'text-zinc-500 dark:text-zinc-400 hover:text-black dark:hover:text-white'
+                  : 'text-zinc-500 hover:text-black dark:hover:text-white'
               }`}
             >
               Готово ({completedCount})
             </button>
           </div>
-
-          {!isAdding && (
-            <M3Button variant="primary" size="sm" onClick={() => setIsAdding(true)} leftIcon={<Plus className="w-4 h-4" />}>
-              Создать
-            </M3Button>
-          )}
         </div>
-      </div>
 
-      {/* Flexible Task Creation Form */}
-      {isAdding && (
-        <M3Card className="p-6 space-y-5">
-          <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800/80 pb-3">
-            <h3 className="font-bold text-base text-black dark:text-white">Конструктор задачи</h3>
-            <span className="text-xs text-zinc-500">Настройте параметры</span>
-          </div>
+        {/* Dynamic Tags Ribbon (Frequent tags) */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pt-2 border-t border-zinc-100 dark:border-zinc-800">
+          <span className="text-xs font-bold text-zinc-400 flex items-center gap-1.5 flex-shrink-0">
+            <TagIcon className="w-3.5 h-3.5" /> Теги:
+          </span>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <M3Input
-              label="Название задачи"
-              placeholder="Что нужно сделать?"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              autoFocus
-              required
-            />
+          <button
+            type="button"
+            onClick={() => setSelectedTag(null)}
+            className={`px-3 py-1 text-xs font-bold rounded-xl transition-all btn-spring flex-shrink-0 ${
+              selectedTag === null
+                ? 'bg-black dark:bg-white text-white dark:text-black shadow-sm'
+                : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:border-zinc-400'
+            }`}
+          >
+            Все теги
+          </button>
 
-            <M3Input
-              label="Краткое описание (опционально)"
-              placeholder="Детали, ссылки или заметки..."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-
-            {/* Type & Priority Pickers */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Task Type */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-black dark:text-white">Тип задачи</label>
-                <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl border border-zinc-200 dark:border-zinc-700">
-                  {(['one_off', 'daily', 'habit'] as TaskType[]).map((t) => (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() => setType(t)}
-                      className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                        type === t
-                          ? 'bg-white dark:bg-zinc-700 text-black dark:text-white shadow-sm'
-                          : 'text-zinc-500 hover:text-black dark:hover:text-white'
-                      }`}
-                    >
-                      {typeLabels[t]}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Priority */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-black dark:text-white">Приоритет</label>
-                <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl border border-zinc-200 dark:border-zinc-700">
-                  {(['low', 'medium', 'high', 'critical'] as TaskPriority[]).map((p) => (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => setPriority(p)}
-                      className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                        priority === p
-                          ? 'bg-black dark:bg-white text-white dark:text-black shadow-sm'
-                          : 'text-zinc-500 hover:text-black dark:hover:text-white'
-                      }`}
-                    >
-                      {priorityLabels[p].label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Pomodoro & Due Date */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Pomodoro blocks */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-black dark:text-white flex items-center gap-1.5">
-                  <Timer className="w-3.5 h-3.5" />
-                  Оценка времени (Pomodoro × 25 мин)
-                </label>
-                <div className="flex items-center gap-1.5">
-                  {[1, 2, 3, 4, 6, 8].map((num) => (
-                    <button
-                      key={num}
-                      type="button"
-                      onClick={() => setEstimatedPomodoros(num)}
-                      className={`w-9 h-9 rounded-xl text-xs font-bold font-mono transition-all ${
-                        estimatedPomodoros === num
-                          ? 'bg-black dark:bg-white text-white dark:text-black'
-                          : 'bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-black dark:hover:border-white'
-                      }`}
-                    >
-                      {num}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Due date */}
-              <M3Input
-                label="Срок выполнения"
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-              />
-            </div>
-
-            {/* Tags */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-black dark:text-white flex items-center gap-1.5">
-                <Tag className="w-3.5 h-3.5" /> Категория / Тег
-              </label>
-              <div className="flex flex-wrap items-center gap-1.5">
-                {quickTags.map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => setTag(tag === t ? '' : t)}
-                    className={`px-3 py-1 rounded-xl text-xs font-medium transition-all ${
-                      tag === t
-                        ? 'bg-black dark:bg-white text-white dark:text-black font-bold'
-                        : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 hover:border-zinc-400'
-                    }`}
-                  >
-                    #{t}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center gap-2 pt-3 border-t border-zinc-100 dark:border-zinc-800">
-              <M3Button type="submit" variant="primary" size="md">
-                Создать задачу
-              </M3Button>
-              <M3Button
+          {popularTags.map(({ tag, count }) => {
+            const isCurrent = selectedTag?.toLowerCase() === tag.toLowerCase();
+            return (
+              <button
+                key={tag}
                 type="button"
-                variant="ghost"
-                size="md"
-                onClick={() => setIsAdding(false)}
-              >
-                Отмена
-              </M3Button>
-            </div>
-          </form>
-        </M3Card>
-      )}
-
-      {/* Tasks List */}
-      <M3Card className="p-6">
-        {filteredTasks.length === 0 ? (
-          <div className="py-12 px-4 text-center space-y-3">
-            <p className="text-sm font-semibold text-zinc-600 dark:text-zinc-400">
-              {filter === 'all'
-                ? 'Список задач пуст'
-                : filter === 'active'
-                ? 'Нет активных задач'
-                : 'Нет выполненных задач'}
-            </p>
-            <p className="text-xs text-zinc-400 dark:text-zinc-500 max-w-sm mx-auto">
-              {filter === 'all'
-                ? 'Нажмите кнопку «Создать», чтобы настроить параметры первой задачи.'
-                : 'Все дела в этом разделе обработаны.'}
-            </p>
-            {!isAdding && filter === 'all' && (
-              <div className="pt-2">
-                <M3Button variant="tonal" size="sm" onClick={() => setIsAdding(true)} leftIcon={<Plus className="w-4 h-4" />}>
-                  Создать первую задачу
-                </M3Button>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {filteredTasks.map((task) => (
-              <div
-                key={task.id}
-                className={`p-4 rounded-2xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-3 ${
-                  task.isCompleted
-                    ? 'bg-zinc-50/70 dark:bg-zinc-900/40 border-zinc-200 dark:border-zinc-800 opacity-60'
-                    : 'bg-white dark:bg-[#18181B] border-zinc-200 dark:border-zinc-700 hover:border-black dark:hover:border-white shadow-sm'
+                onClick={() => setSelectedTag(isCurrent ? null : tag)}
+                className={`px-3 py-1 text-xs font-bold rounded-xl transition-all btn-spring flex-shrink-0 ${
+                  isCurrent
+                    ? 'bg-black dark:bg-white text-white dark:text-black shadow-sm'
+                    : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 hover:border-zinc-400'
                 }`}
               >
-                <div
-                  onClick={() => toggleTask(task.id)}
-                  className="flex items-start gap-3.5 flex-1 cursor-pointer select-none"
-                >
-                  <div
-                    className={`w-5 h-5 rounded-lg flex items-center justify-center border-2 transition-colors mt-0.5 flex-shrink-0 ${
-                      task.isCompleted
-                        ? 'bg-black dark:bg-white border-black dark:border-white text-white dark:text-black'
-                        : 'border-zinc-400 dark:border-zinc-600'
-                    }`}
-                  >
-                    {task.isCompleted && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-                  </div>
-
-                  <div className="space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span
-                        className={`text-sm font-bold ${
-                          task.isCompleted
-                            ? 'line-through text-zinc-400 dark:text-zinc-500'
-                            : 'text-black dark:text-white'
-                        }`}
-                      >
-                        {task.title}
-                      </span>
-
-                      {/* Tags & Metadata */}
-                      {task.tag && (
-                        <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700">
-                          #{task.tag}
-                        </span>
-                      )}
-
-                      {task.priority && task.priority !== 'medium' && (
-                        <span className={`text-[10px] font-mono px-2 py-0.5 rounded-md ${priorityLabels[task.priority].bg}`}>
-                          {priorityLabels[task.priority].label}
-                        </span>
-                      )}
-                    </div>
-
-                    {task.description && (
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                        {task.description}
-                      </p>
-                    )}
-
-                    <div className="flex flex-wrap items-center gap-3 text-[11px] font-mono text-zinc-400 pt-0.5">
-                      <span className="flex items-center gap-1">
-                        <Timer className="w-3 h-3" />
-                        {task.estimatedPomodoros} × 25м
-                      </span>
-                      {task.dueDate && (
-                        <span className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          Срок: {task.dueDate}
-                        </span>
-                      )}
-                      <span>Тип: {typeLabels[task.type || 'one_off']}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-end gap-1 pt-2 md:pt-0">
-                  <button
-                    type="button"
-                    onClick={() => deleteTask(task.id)}
-                    className="p-2 text-zinc-400 hover:text-red-500 dark:hover:text-red-400 transition-colors rounded-lg"
-                    title="Удалить задачу"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+                #{tag} {count > 0 ? `(${count})` : ''}
+              </button>
+            );
+          })}
+        </div>
       </M3Card>
+
+      {/* Task List */}
+      <div className="space-y-3.5">
+        {filteredTasks.length === 0 ? (
+          <M3Card className="p-10 sm:p-12 text-center space-y-4">
+            <div className="w-14 h-14 rounded-3xl bg-zinc-100 dark:bg-zinc-800 text-zinc-400 flex items-center justify-center mx-auto shadow-inner">
+              <Sparkles className="w-7 h-7" />
+            </div>
+            <div className="space-y-1.5">
+              <h3 className="text-base sm:text-lg font-bold text-black dark:text-white">
+                {searchQuery || selectedTag
+                  ? 'По вашему запросу ничего не найдено'
+                  : filter === 'routine'
+                  ? 'У вас пока нет постоянных рутин'
+                  : filter === 'completed'
+                  ? 'Нет выполненных задач'
+                  : 'Список задач пуст'}
+              </h3>
+              <p className="text-xs sm:text-sm font-medium text-zinc-500 max-w-md mx-auto">
+                {searchQuery || selectedTag
+                  ? 'Попробуйте сбросить фильтры или изменить поисковую фразу.'
+                  : 'Создайте задачу с нужными параметрами, тайм-блоком и чеклистом шагов.'}
+              </p>
+            </div>
+
+            <div className="pt-2">
+              <M3Button
+                variant="primary"
+                size="md"
+                onClick={handleOpenCreateModal}
+                className="px-6 py-3 font-bold text-sm"
+                leftIcon={<Plus className="w-4 h-4 stroke-[3]" />}
+              >
+                Создать первую задачу
+              </M3Button>
+            </div>
+          </M3Card>
+        ) : (
+          filteredTasks.map((task) => (
+            <TaskCard key={task.id} task={task} onEdit={handleOpenEditModal} />
+          ))
+        )}
+      </div>
+
+      {/* Task Editor Modal */}
+      <TaskEditorModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        initialTask={editingTask}
+      />
     </div>
   );
 };

@@ -6,153 +6,209 @@
   color-scheme: light;
   --accent-primary: #000000;
   --accent-text: #FFFFFF;
-  --accent-ring: rgba(0, 0, 0, 0.2);
+  --accent-ring: rgba(0, 0, 0, 0.15);
+  --ease-weight: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-smooth: cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 html.dark {
   color-scheme: dark;
   --accent-primary: #FFFFFF;
   --accent-text: #000000;
-  --accent-ring: rgba(255, 255, 255, 0.2);
+  --accent-ring: rgba(255, 255, 255, 0.15);
 }
 
 /* Accent Color Variations */
 html[data-accent="blue"] {
   --accent-primary: #2563EB;
   --accent-text: #FFFFFF;
-  --accent-ring: rgba(37, 99, 235, 0.25);
+  --accent-ring: rgba(37, 99, 235, 0.2);
 }
 html.dark[data-accent="blue"] {
   --accent-primary: #3B82F6;
   --accent-text: #FFFFFF;
-  --accent-ring: rgba(59, 130, 246, 0.25);
+  --accent-ring: rgba(59, 130, 246, 0.2);
 }
 
 html[data-accent="emerald"] {
   --accent-primary: #059669;
   --accent-text: #FFFFFF;
-  --accent-ring: rgba(5, 150, 105, 0.25);
+  --accent-ring: rgba(5, 150, 105, 0.2);
 }
 html.dark[data-accent="emerald"] {
   --accent-primary: #10B981;
   --accent-text: #000000;
-  --accent-ring: rgba(16, 185, 129, 0.25);
+  --accent-ring: rgba(16, 185, 129, 0.2);
 }
 
 html[data-accent="amber"] {
   --accent-primary: #D97706;
   --accent-text: #FFFFFF;
-  --accent-ring: rgba(217, 119, 6, 0.25);
+  --accent-ring: rgba(217, 119, 6, 0.2);
 }
 html.dark[data-accent="amber"] {
   --accent-primary: #F59E0B;
   --accent-text: #000000;
-  --accent-ring: rgba(245, 158, 11, 0.25);
+  --accent-ring: rgba(245, 158, 11, 0.2);
 }
 
 html[data-accent="purple"] {
   --accent-primary: #7C3AED;
   --accent-text: #FFFFFF;
-  --accent-ring: rgba(124, 58, 237, 0.25);
+  --accent-ring: rgba(124, 58, 237, 0.2);
 }
 html.dark[data-accent="purple"] {
   --accent-primary: #8B5CF6;
   --accent-text: #FFFFFF;
-  --accent-ring: rgba(139, 92, 246, 0.25);
+  --accent-ring: rgba(139, 92, 246, 0.2);
 }
 
 html[data-accent="rose"] {
   --accent-primary: #E11D48;
   --accent-text: #FFFFFF;
-  --accent-ring: rgba(225, 29, 72, 0.25);
+  --accent-ring: rgba(225, 29, 72, 0.2);
 }
 html.dark[data-accent="rose"] {
   --accent-primary: #F43F5E;
   --accent-text: #FFFFFF;
-  --accent-ring: rgba(244, 63, 94, 0.25);
+  --accent-ring: rgba(244, 63, 94, 0.2);
 }
 
-/* Visibly Bold & Punchy UI Typography */
+/* UI Typography */
 html, body, #root {
   min-height: 100vh;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  font-weight: 600; /* Bold baseline */
+  font-weight: 500;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   transition: background-color 0.2s ease, color 0.2s ease;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.015em;
 }
 
 body {
-  background-color: #ECEEF0;
+  background-color: #F1F3F5;
   color: #000000;
 }
 
 html.dark body {
-  background-color: #09090B;
+  background-color: #0C0C0E;
   color: #FFFFFF;
 }
 
-/* Headings with Extra Bold weight */
+/* Headings */
 h1, h2, h3, h4, h5, h6 {
   font-family: 'Inter', system-ui, sans-serif;
-  font-weight: 800 !important;
-  letter-spacing: -0.035em;
+  font-weight: 700 !important;
+  letter-spacing: -0.025em;
 }
 
-/* Buttons and Inputs bold weight */
+/* Buttons and Inputs */
 button, input, textarea, select {
   font-family: 'Inter', system-ui, sans-serif;
   font-weight: 600;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.01em;
 }
 
-/* Range Slider custom styling */
+/* Smooth, Weighted Micro-Interactions (No twitching/overshoot) */
+.btn-spring {
+  transition: opacity 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, transform 0.1s var(--ease-weight), box-shadow 0.15s ease;
+}
+.btn-spring:active {
+  transform: scale(0.98);
+}
+
+.card-spring {
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+}
+
+/* Gentle, Weighted Keyframe Transitions */
+@keyframes smoothFadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes modalFadeIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-spring-in {
+  animation: smoothFadeIn 0.15s var(--ease-smooth) forwards;
+}
+
+.animate-modal-in {
+  animation: modalFadeIn 0.2s var(--ease-weight) forwards;
+}
+
+.animate-tab-content {
+  animation: smoothFadeIn 0.18s var(--ease-smooth) forwards;
+}
+
+/* Pixel-perfect Range Slider */
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
-  background: transparent;
+  width: 100%;
+  height: 6px;
+  background: #E4E4E7;
+  border-radius: 9999px;
+  outline: none;
   cursor: pointer;
+  margin: 12px 0;
+  transition: background-color 0.15s ease;
+}
+
+html.dark input[type="range"] {
+  background: #27272A;
 }
 
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  height: 20px;
   width: 20px;
+  height: 20px;
   border-radius: 9999px;
   background: var(--accent-primary);
-  border: 3px solid #FFFFFF;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  border: 2px solid #FFFFFF;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
   cursor: grab;
-  transition: transform 0.1s ease;
-  margin-top: -6px;
+  transition: transform 0.15s var(--ease-weight);
 }
 
 html.dark input[type="range"]::-webkit-slider-thumb {
-  border: 3px solid #141416;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  border: 2px solid #141416;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
 
 input[type="range"]:active::-webkit-slider-thumb {
   cursor: grabbing;
-  transform: scale(1.18);
+  transform: scale(1.1);
 }
 
 input[type="range"]::-moz-range-thumb {
-  height: 20px;
   width: 20px;
+  height: 20px;
   border-radius: 9999px;
   background: var(--accent-primary);
-  border: 3px solid #FFFFFF;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  border: 2px solid #FFFFFF;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
   cursor: grab;
 }
 
 /* Crisp minimal scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
@@ -160,7 +216,14 @@ input[type="range"]::-moz-range-thumb {
 ::-webkit-scrollbar-thumb {
   background: #D4D4D8;
   border-radius: 9999px;
+  transition: background-color 0.15s ease;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #A1A1AA;
 }
 html.dark ::-webkit-scrollbar-thumb {
   background: #27272A;
+}
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #3F3F46;
 }

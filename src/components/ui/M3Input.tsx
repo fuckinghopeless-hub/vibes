@@ -3,6 +3,7 @@ import React from 'react';
 interface M3InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
+  hint?: string;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
 }
@@ -10,6 +11,7 @@ interface M3InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 export const M3Input: React.FC<M3InputProps> = ({
   label,
   error,
+  hint,
   leftIcon,
   rightIcon,
   className = '',
@@ -38,11 +40,11 @@ export const M3Input: React.FC<M3InputProps> = ({
 
         <input
           id={inputId}
-          className={`w-full py-2.5 px-3.5 text-sm font-semibold rounded-xl bg-white dark:bg-[#141416] text-black dark:text-white border ${
+          className={`w-full py-2.5 px-3.5 text-sm font-semibold rounded-xl bg-white dark:bg-[#141416] text-black dark:text-white border-2 ${
             error
-              ? 'border-red-500 focus:ring-red-500'
-              : 'border-zinc-300 dark:border-zinc-700 hover:border-black dark:hover:border-zinc-500 focus:border-black dark:focus:border-white'
-          } outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 ${
+              ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
+              : 'border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600 focus:border-black dark:focus:border-white'
+          } outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:ring-2 focus:ring-[var(--accent-ring)] ${
             leftIcon ? 'pl-10' : ''
           } ${rightIcon ? 'pr-10' : ''} ${className}`}
           {...props}
@@ -54,6 +56,12 @@ export const M3Input: React.FC<M3InputProps> = ({
           </div>
         )}
       </div>
+
+      {hint && !error && (
+        <p className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 pl-1">
+          {hint}
+        </p>
+      )}
 
       {error && (
         <p className="text-xs font-bold text-red-500 dark:text-red-400 pl-1">

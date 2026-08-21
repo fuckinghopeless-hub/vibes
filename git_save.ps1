@@ -5,7 +5,17 @@ Write-Host "   VIBES - Автоматическое Сохранение Вер�
 Write-Host " ===================================================================" -ForegroundColor Cyan
 Write-Host ""
 
-# Проверка наличия Git
+# Проверка наличия Git и добавление в PATH при необходимости
+if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+    if (Test-Path "C:\Program Files\Git\cmd\git.exe") {
+        $env:Path = "C:\Program Files\Git\cmd;C:\Program Files\Git\bin;$env:Path"
+    } elseif (Test-Path "C:\Program Files (x86)\Git\cmd\git.exe") {
+        $env:Path = "C:\Program Files (x86)\Git\cmd;$env:Path"
+    } elseif (Test-Path "$env:LOCALAPPDATA\Programs\Git\cmd\git.exe") {
+        $env:Path = "$env:LOCALAPPDATA\Programs\Git\cmd;$env:Path"
+    }
+}
+
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
     Write-Host "  [!] Git не найден в системе!" -ForegroundColor Red
     Write-Host "  Скачайте и установите Git: https://git-scm.com/download/win" -ForegroundColor Yellow
@@ -15,7 +25,7 @@ if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
 }
 
 # Запрос версии
-$ver = Read-Host "Введите номер версии (например 0.1v3 или Enter для пропуска)"
+$ver = Read-Host "Введите номер версии (например 1.1.0 или Enter для пропуска)"
 
 # Если версия введена — автоматически обновляем src/version.ts
 if (-not [string]::IsNullOrWhiteSpace($ver)) {
